@@ -2,10 +2,9 @@ package com.example.room
 
 import com.example.data.MessageDataSource
 import com.example.data.model.Message
-import io.ktor.websocket.Frame
+import com.example.data.model.PrivateChat
 import io.ktor.websocket.WebSocketSession
 import io.ktor.websocket.close
-import kotlinx.serialization.json.Json
 import java.util.concurrent.ConcurrentHashMap
 
 class RoomController(
@@ -13,43 +12,44 @@ class RoomController(
 ) {
     private val members = ConcurrentHashMap<String, Member>()
 
-    fun onJoin(
-        username: String,
-        sessionId: String,
-        socket: WebSocketSession
-    ) {
-        if(members.containsKey(username)) {
+    fun onJoin(username: String, sessionId: String, socket: WebSocketSession) {
+        if (members.containsKey(username)) {
             throw MemberAlreadyExistsException()
         }
-        members[username] = Member(
-            username = username,
-            sessionId = sessionId,
-            socket = socket
-        )
+        members[username] = Member(username, sessionId, socket)
     }
 
-    suspend fun sendMessage(senderUsername: String, message: String) {
-        members.values.forEach { member ->
+    suspend fun sendMessage(senderUsername: String, receiverUsername: String, messageText: String) {
+        println("RoomController.sendMessage() called with:")
+        println("Sender: $senderUsername, Receiver: $receiverUsername, Text: $messageText")
+
+        try {
             val messageEntity = Message(
-                text = message,
-                username = senderUsername,
+                text = messageText,
+                senderUsername = senderUsername,
                 timestamp = System.currentTimeMillis()
             )
-            messageDataSource.insertMessage(messageEntity)
 
-            val parsedMessage = Json.encodeToString(messageEntity)
-            member.socket.send(Frame.Text(parsedMessage))
+            println("Attempting to save message to DB")
+            messageDataSource.insertPrivateMessage(
+                senderUsername = senderUsername,
+                receiverUsername = receiverUsername,
+                message = messageEntity
+            )
+            println("Message saved successfully")
+
+        } catch (e: Exception) {
+            println("Failed to save message: ${e.stackTraceToString()}")
+            throw e
         }
     }
 
-    suspend fun getAllMessages(): List<Message> {
-        return messageDataSource.getAllMessages()
+    suspend fun getAllMessages(username: String): List<PrivateChat> {
+        return messageDataSource.getAllMessagesForUser(username)
     }
 
     suspend fun tryDisconnect(username: String) {
         members[username]?.socket?.close()
-        if(members.containsKey(username)) {
-            members.remove(username)
-        }
+        members.remove(username)
     }
 }

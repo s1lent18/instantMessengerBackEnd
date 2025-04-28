@@ -5,9 +5,8 @@ import org.bson.codecs.pojo.annotations.BsonId
 import org.bson.types.ObjectId
 
 @Serializable
-data class Message(
-    val text: String,
-    val senderUsername: String,
-    val timestamp: Long,
-    @BsonId val id: String = ObjectId().toString()
+data class User(
+    @BsonId val id: String = ObjectId().toString(),
+    val username: String,
+    val chats: List<PrivateChat> = emptyList()
 )
