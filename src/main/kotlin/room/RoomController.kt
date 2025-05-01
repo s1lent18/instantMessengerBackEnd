@@ -3,8 +3,10 @@ package com.example.room
 import com.example.data.MessageDataSource
 import com.example.data.model.Message
 import com.example.data.model.PrivateChat
+import io.ktor.websocket.Frame
 import io.ktor.websocket.WebSocketSession
 import io.ktor.websocket.close
+import kotlinx.serialization.json.Json
 import java.util.concurrent.ConcurrentHashMap
 
 class RoomController(
@@ -38,6 +40,8 @@ class RoomController(
             )
             println("Message saved successfully")
 
+            members[receiverUsername]?.socket?.send(Frame.Text(Json.encodeToString(messageEntity)))
+
         } catch (e: Exception) {
             println("Failed to save message: ${e.stackTraceToString()}")
             throw e
@@ -48,8 +52,17 @@ class RoomController(
         return messageDataSource.getAllMessagesForUser(username)
     }
 
+    suspend fun markMessageAsRead(messageId: String) {
+        return messageDataSource.markMessageAsRead(messageId = messageId)
+    }
+
+    suspend fun getAllChatsForUser(username: String) : List<PrivateChat> {
+        return messageDataSource.getAllChatsForUser(username = username)
+    }
+
     suspend fun tryDisconnect(username: String) {
         members[username]?.socket?.close()
         members.remove(username)
+
     }
 }

@@ -9,5 +9,6 @@ data class Message(
     val text: String,
     val senderUsername: String,
     val timestamp: Long,
+    val read: Boolean = false,
     @BsonId val id: String = ObjectId().toString()
 )
