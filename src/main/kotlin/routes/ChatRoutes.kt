@@ -2,6 +2,7 @@ package com.example.routes
 
 import com.example.data.model.IncomingMessage
 import com.example.data.model.LoginRequest
+import com.example.data.model.Message
 import com.example.data.model.User
 import com.example.room.RoomController
 import com.example.session.ChatSession
@@ -113,7 +114,9 @@ fun Route.messageReadRoutes(roomController: RoomController) {
             roomController.markMessageAsRead(messageId)
             call.respond(HttpStatusCode.OK)
         } catch (e: Exception) {
-            call.respond(HttpStatusCode.InternalServerError, "Failed to mark message as read")
+            e.printStackTrace() // Logs to server console
+            call.application.environment.log.error("Error marking message as read", e)
+            call.respond(HttpStatusCode.InternalServerError, "Error: ${e.message}")
         }
     }
 }
@@ -161,6 +164,40 @@ fun Route.userRoutes() {
         } catch (e: Exception) {
             println("Error fetching user: ${e.message}")
             call.respond(HttpStatusCode.InternalServerError, "Error fetching user")
+        }
+    }
+}
+
+fun Route.chatWithUser(roomController: RoomController) {
+    get("/chat-with/{otherUsername}") {
+        val session = call.sessions.get<ChatSession>()
+        val otherUsername = call.parameters["otherUsername"]
+
+        if (session == null) {
+            call.respond(HttpStatusCode.Unauthorized, "No session.")
+            return@get
+        }
+
+        if (otherUsername == null) {
+            call.respond(HttpStatusCode.BadRequest, "Missing 'otherUsername'.")
+            return@get
+        }
+
+        val currentUserChats = roomController.getAllMessages(session.username)
+        val db = KMongo.createClient().coroutine.getDatabase("InstantMessenger")
+        val users = db.getCollection<User>("users")
+        val otherUser = users.findOne(User::username eq otherUsername)
+
+        if (otherUser == null) {
+            call.respond(HttpStatusCode.NotFound, "User not found: $otherUsername")
+            return@get
+        }
+
+        val chat = currentUserChats.find { it.otherUserId == otherUser.id }
+        if (chat == null) {
+            call.respond(emptyList<Message>())
+        } else {
+            call.respond(chat.messages)
         }
     }
 }

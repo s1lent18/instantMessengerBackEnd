@@ -3,12 +3,13 @@ package com.example.data
 import com.example.data.model.Message
 import com.example.data.model.PrivateChat
 import com.example.data.model.User
+import com.mongodb.client.model.Filters
 import com.mongodb.client.model.Filters.eq
-import com.mongodb.client.model.Filters.`in`
 import com.mongodb.client.model.UpdateOptions
+import com.mongodb.client.model.Updates
 import com.mongodb.client.model.Updates.set
+import org.bson.Document
 import org.bson.types.ObjectId
-import org.litote.kmongo.and
 import org.litote.kmongo.coroutine.CoroutineDatabase
 import org.litote.kmongo.eq
 
@@ -60,6 +61,7 @@ class MessageDataSourceImpl(
             println("Creating new chat for sender")
             PrivateChat(
                 otherUserId = receiver.id,
+                otherUsername = receiver.username
             )
         }
 
@@ -71,6 +73,7 @@ class MessageDataSourceImpl(
         val receiverChat = receiver.chats.find { it.otherUserId == sender.id }
             ?: PrivateChat(
                 otherUserId = sender.id,
+                otherUsername = senderUsername
             )
 
         val updatedReceiver = receiver.copy(
@@ -89,21 +92,24 @@ class MessageDataSourceImpl(
     }
 
     override suspend fun markMessageAsRead(messageId: String) {
-        val filter = and(
-            `in`("chats.messages._id", ObjectId(messageId))
-        )
+        val filter = eq("chats.messages._id", messageId) // use string directly
 
         val update = set("chats.$[chat].messages.$[message].read", true)
 
-        users.updateMany(
-            filter = filter,
-            update = update,
-            options = UpdateOptions().arrayFilters(
-                listOf(
-                    eq("chat.messages._id", ObjectId(messageId))
-                )
+        val updateOptions = UpdateOptions().arrayFilters(
+            listOf(
+                Document("chat.messages._id", messageId),
+                Document("message._id", messageId)
             )
         )
+
+        val result = users.updateMany(
+            filter,
+            update,
+            updateOptions
+        )
+
+        println("Matched: ${result.matchedCount}, Modified: ${result.modifiedCount}")
     }
 
     override suspend fun getAllChatsForUser(username: String): List<PrivateChat> {

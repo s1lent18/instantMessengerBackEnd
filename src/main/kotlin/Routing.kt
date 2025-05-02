@@ -5,6 +5,7 @@ import com.example.routes.chatHistoryRoutes
 import io.ktor.server.application.*
 import io.ktor.server.routing.*
 import com.example.routes.chatSocket
+import com.example.routes.chatWithUser
 import com.example.routes.getAllMessages
 import com.example.routes.loginRoute
 import com.example.routes.messageReadRoutes
@@ -20,5 +21,6 @@ fun Application.configureRouting() {
         loginRoute()
         chatSocket(roomController)
         getAllMessages(roomController)
+        chatWithUser(roomController)
     }
 }

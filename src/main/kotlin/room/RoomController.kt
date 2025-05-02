@@ -29,6 +29,7 @@ class RoomController(
             val messageEntity = Message(
                 text = messageText,
                 senderUsername = senderUsername,
+                receiverUsername = receiverUsername,
                 timestamp = System.currentTimeMillis()
             )
 
